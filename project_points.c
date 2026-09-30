@@ -57,7 +57,7 @@ int main(int argc, char *argv[])
             f, width, height, u_0, v_0, alpha_u, alpha_v,
             gama, beta, alpha, T_x, T_y, T_z,
             use_depth,
-            out_pam ? "pam" : "ppm"); // was confusing to get ppm all the time so edited this
+            out_pam ? "pam" : "ppm"); // extention based on the output type
 
     // Start processing
     // Read the pointcloud
@@ -68,21 +68,13 @@ int main(int argc, char *argv[])
     // and center it
     centerThePCL(points, N_v);
 
-    // Regid transformation ////////////////////////////////////////////////////
+    // Regid transformation
     float transition_matrix[16];
     computeTrans(gama, beta, alpha, T_x, T_y, T_z, transition_matrix);
-    // float point_vect[4];
-    // point_vect[3] = 1;
+
     float trans_x, trans_y, trans_z, trans_w;
-    for (int i = 0; i < N_v; i++) // i dont think this is the most optmized way but lets go with it fofr now
+    for (int i = 0; i < N_v; i++)
     {
-        // point_vect[0] = points[i].x;
-        // point_vect[1] = points[i].y;
-        // point_vect[2] = points[i].z;
-        // matMul(transition_matrix, point_vect, point_vect); // apply the transition on the point
-        // points[i].x = point_vect[0] / point_vect[3];
-        // points[i].y = point_vect[1] / point_vect[3];
-        // points[i].z = point_vect[2] / point_vect[3];
         trans_x = transition_matrix[0] * points[i].x + transition_matrix[1] * points[i].y + transition_matrix[2] * points[i].z + transition_matrix[3];
         trans_y = transition_matrix[4] * points[i].x + transition_matrix[5] * points[i].y + transition_matrix[6] * points[i].z + transition_matrix[7];
         trans_z = transition_matrix[8] * points[i].x + transition_matrix[9] * points[i].y + transition_matrix[10] * points[i].z + transition_matrix[11];
@@ -91,7 +83,6 @@ int main(int argc, char *argv[])
         points[i].y = trans_y / trans_w;
         points[i].z = trans_z / trans_w;
     }
-    ///////////////////////////////////////////////////////////////////////////
 
     // allocate output image and initialize with white colors
     ppm_file image;
@@ -104,12 +95,14 @@ int main(int argc, char *argv[])
 
     image.pixmap = malloc(sizeof(pixel) * height * width);
 
-    // Print if depth buffer is being used
+    // prepare a depth buffer if needed
     float *depth;
     if (use_depth)
     {
         printf("Using Depth Buffer\n");
-        depth = calloc(width * height, sizeof(float)); // the idea is to set everything to 0,then on checking if the case is 0 we update else compare
+        depth = malloc(width * height * sizeof(float));
+        for (int i; i < width * height; i++)
+            depth[i] = INFINITY;
     }
 
     int orthogonal = 0;
@@ -119,6 +112,7 @@ int main(int argc, char *argv[])
         orthogonal = 1;
     }
 
+    // extra buffer used as an extra channel for transparcy (pam)
     int *tr_channel;
     if (out_pam)
     {
@@ -126,31 +120,19 @@ int main(int argc, char *argv[])
         tr_channel = calloc(width * height, sizeof(int));
     }
 
-    // printf("PLEASE IMPLEMENT THE PROJECTION\n");
     float X_cam, Y_cam;
     int x_u, y_u;
     // Go through the point-cloud
     for (int i = 0; i < N_v; i++)
     {
-        // Project the point
+        // Project the point DONE
         if (orthogonal)
         {
-            // implement orthogonal projection here
             X_cam = points[i].x;
             Y_cam = points[i].y;
         }
         else
         {
-            // implement pinhole projection here
-
-            // allocating and preparing the intermidate matrix
-            // float **intermidiat_matrix = malloc(sizeof(float *) * 4);
-            // for (int i = 0; i < 4; i++)
-            //     intermidiat_matrix[i] = calloc(4, sizeof(float));
-            // intermidiat_matrix[0][0] = 1;
-            // intermidiat_matrix[1][1] = 1;
-            // intermidiat_matrix[3][2] = 1 / f;
-            // intermidiat_matrix[3][3] = 1;
             X_cam = points[i].x / (1.0f + points[i].z / f);
             Y_cam = points[i].y / (1.0f + points[i].z / f);
         }
@@ -162,11 +144,11 @@ int main(int argc, char *argv[])
         if (x_u >= width || y_u >= height || x_u < 0 || y_u < 0)
             continue;
 
-        // Do something about the depth
+        // Do something about the depth DONE
 
         if (use_depth)
         {
-            if (!(!depth[x_u + y_u * width] || points[i].z < depth[x_u + y_u * width]))
+            if (points[i].z > depth[x_u + y_u * width])
                 continue;
             depth[x_u + y_u * width] = points[i].z;
         }

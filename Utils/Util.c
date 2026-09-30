@@ -354,7 +354,7 @@ void write_pam(ppm_file image, int *tr, char *filename)
     pm_error(" FILE OPEN ERROR");
   }
 
-  // from wekipedia
+  // from weki
   fprintf(ofp, "P7\n");
   fprintf(ofp, "WIDTH %d\n", image.cols);
   fprintf(ofp, "HEIGHT %d\n", image.rows);
