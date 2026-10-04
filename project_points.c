@@ -101,7 +101,7 @@ int main(int argc, char *argv[])
     {
         printf("Using Depth Buffer\n");
         depth = malloc(width * height * sizeof(float));
-        for (int i; i < width * height; i++)
+        for (int i = 0; i < width * height; i++)
             depth[i] = INFINITY;
     }
 
